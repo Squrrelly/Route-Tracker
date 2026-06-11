@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>Route Tracker</title>
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Route Tracker" />
+<meta name="theme-color" content="#1F5F4A" />
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%231F5F4A'/%3E%3Ctext x='50' y='66' font-size='48' text-anchor='middle'%3E%F0%9F%9A%9A%3C/text%3E%3C/svg%3E" />
+<style>html,body{margin:0;padding:0;background:#F6F3EC;}#root{min-height:100vh;}</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useMemo } = React;
+
+/* ---------- inline SVG icons (no libraries needed) ---------- */
+function Ic({ d, size = 18, color = 'currentColor', strokeWidth = 2, style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
+      strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={style}>
+      {d.map((p, i) => {
+        if (p.c) return <circle key={i} cx={p.c[0]} cy={p.c[1]} r={p.c[2]} />;
+        if (p.r) return <rect key={i} x={p.r[0]} y={p.r[1]} width={p.r[2]} height={p.r[3]} rx={p.r[4] || 0} />;
+        if (p.l) return <line key={i} x1={p.l[0]} y1={p.l[1]} x2={p.l[2]} y2={p.l[3]} />;
+        return <path key={i} d={p.p} />;
+      })}
+    </svg>
+  );
+}
+const mk = (d) => (props) => <Ic d={d} {...props} />;
+const Home = mk([{p:'M3 12 12 3l9 9'},{p:'M5 10v10h14V10'},{p:'M9 20v-6h6v6'}]);
+const FileText = mk([{p:'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'},{p:'M14 2v6h6'},{l:[8,13,16,13]},{l:[8,17,16,17]}]);
+const Wallet = mk([{p:'M21 7H5a2 2 0 0 1 0-4h14v4'},{p:'M3 5v14a2 2 0 0 0 2 2h16V7'},{c:[16.5,14,1]}]);
+const Plus = mk([{l:[12,5,12,19]},{l:[5,12,19,12]}]);
+const Trash2 = mk([{p:'M3 6h18'},{p:'M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2'},{p:'M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6'},{l:[10,11,10,17]},{l:[14,11,14,17]}]);
+const Printer = mk([{p:'M6 9V2h12v7'},{p:'M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2'},{r:[6,14,12,8]}]);
+const Package = mk([{p:'M21 8v8a2 2 0 0 1-1 1.73l-7 4a2 2 0 0 1-2 0l-7-4A2 2 0 0 1 3 16V8a2 2 0 0 1 1-1.73l7-4a2 2 0 0 1 2 0l7 4A2 2 0 0 1 21 8z'},{p:'M3.3 7 12 12l8.7-5'},{l:[12,22,12,12]}]);
+const MapPin = mk([{p:'M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z'},{c:[12,10,3]}]);
+const Check = mk([{p:'M20 6 9 17l-5-5'}]);
+const X = mk([{l:[18,6,6,18]},{l:[6,6,18,18]}]);
+const Fuel = mk([{l:[3,22,15,22]},{p:'M4 22V4a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v18'},{p:'M14 13h2a2 2 0 0 1 2 2v3a1.5 1.5 0 0 0 3 0V9l-3-3'},{l:[4,10,14,10]}]);
+const Hotel = mk([{r:[2,4,20,16,2]},{l:[2,12,22,12]},{l:[7,8,7,8]},{l:[12,8,12,8]},{l:[2,20,2,22]},{l:[22,20,22,22]}]);
+const Utensils = mk([{p:'M3 2v7a3 3 0 0 0 6 0V2'},{l:[6,2,6,22]},{p:'M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3z'},{l:[18,15,18,22]}]);
+const ChevronRight = mk([{p:'m9 18 6-6-6-6'}]);
+const ClipboardList = mk([{r:[8,2,8,4,1]},{p:'M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2'},{l:[12,11,16,11]},{l:[12,16,16,16]},{l:[8,11,8,11]},{l:[8,16,8,16]}]);
+const ArrowLeft = mk([{l:[19,12,5,12]},{p:'m12 19-7-7 7-7'}]);
+const RouteIcon = mk([{c:[6,19,3]},{c:[18,5,3]},{p:'M12 19h4.5a3.5 3.5 0 0 0 0-7h-9a3.5 3.5 0 0 1 0-7H12'}]);
+const Truck = mk([{p:'M14 18V6a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h2'},{p:'M14 9h4l4 4v4a1 1 0 0 1-1 1h-2'},{c:[7,18,2]},{c:[17,18,2]}]);
+const Pencil = mk([{p:'M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z'},{p:'m15 5 4 4'}]);
+const Mail = mk([{r:[2,4,20,16,2]},{p:'m22 7-10 5L2 7'}]);
+
+/* ---------- palette ---------- */
+const C = {
+  bg: '#F6F3EC', surface: '#FFFFFF', ink: '#1B211C', sub: '#5C655C',
+  line: '#E4DECF', green: '#1F5F4A', greenSoft: '#E7F0EA',
+  amber: '#E0911F', amberSoft: '#FBEFD7', red: '#B5402A', redSoft: '#F6E2DC',
+};
+
+/* ---------- storage ---------- */
+const KEYS = { products: 'products', stores: 'stores', visits: 'visits', trips: 'trips', meta: 'meta', routes: 'routes' };
+async function loadKey(key, fallback) {
+  try { const v = localStorage.getItem('routetracker_' + key); return v != null ? JSON.parse(v) : fallback; }
+  catch (e) { return fallback; }
+}
+async function saveKey(key, val) {
+  try { localStorage.setItem('routetracker_' + key, JSON.stringify(val)); } catch (e) { console.error('save failed', e); }
+}
+const uid = () => Math.random().toString(36).slice(2, 9);
+const money = (n) => '$' + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const todayISO = () => new Date().toISOString().slice(0, 10);
+const daysAgo = (iso) => Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+
+/* =====================================================================
+   APP — nav state is a simple stack: routes list -> route -> store -> visit
+===================================================================== */
+function App() {
+  const [ready, setReady] = useState(false);
+  const [tab, setTab] = useState('routes');
+  // drill-down within Routes tab
+  const [nav, setNav] = useState({ routeId: null, storeId: null, counting: false });
+
+  const [products, setProducts] = useState([]);
+  const [stores, setStores] = useState([]);
+  const [routes, setRoutes] = useState([]);
+  const [visits, setVisits] = useState([]);
+  const [trips, setTrips] = useState([]);
+  const [meta, setMeta] = useState({ invoiceCounter: 1001, business: "Brother's Route" });
+
+  useEffect(() => {
+    (async () => {
+      setProducts(await loadKey(KEYS.products, []));
+      setStores(await loadKey(KEYS.stores, []));
+      setRoutes(await loadKey(KEYS.routes, []));
+      setVisits(await loadKey(KEYS.visits, []));
+      setTrips(await loadKey(KEYS.trips, []));
+      setMeta(await loadKey(KEYS.meta, { invoiceCounter: 1001, business: "Brother's Route" }));
+      setReady(true);
+    })();
+  }, []);
+
+  useEffect(() => { if (ready) saveKey(KEYS.products, products); }, [products, ready]);
+  useEffect(() => { if (ready) saveKey(KEYS.stores, stores); }, [stores, ready]);
+  useEffect(() => { if (ready) saveKey(KEYS.routes, routes); }, [routes, ready]);
+  useEffect(() => { if (ready) saveKey(KEYS.visits, visits); }, [visits, ready]);
+  useEffect(() => { if (ready) saveKey(KEYS.trips, trips); }, [trips, ready]);
+  useEffect(() => { if (ready) saveKey(KEYS.meta, meta); }, [meta, ready]);
+
+  const productById = useMemo(() => Object.fromEntries(products.map(p => [p.id, p])), [products]);
+  const storeById = useMemo(() => Object.fromEntries(stores.map(s => [s.id, s])), [stores]);
+
+  if (!ready) return (
+    <div style={{ ...sx.app, alignItems: 'center', justifyContent: 'center', display: 'flex' }}>
+      <span style={{ color: C.sub }}>Loading your routes…</span>
+    </div>
+  );
+
+  const shared = {
+    products, setProducts, stores, setStores, routes, setRoutes,
+    visits, setVisits, trips, setTrips, meta, setMeta,
+    productById, storeById, nav, setNav, setTab,
+  };
+
+  const goTab = (id) => { setTab(id); setNav({ routeId: null, storeId: null, counting: false }); };
+
+  return (
+    <div style={sx.app}>
+      <style>{globalCSS}</style>
+      <div style={sx.scroll} className="no-print">
+        {tab === 'home' && <HomeView {...shared} />}
+        {tab === 'routes' && <RoutesFlow {...shared} />}
+        {tab === 'inventory' && <InventoryView {...shared} />}
+        {tab === 'invoices' && <InvoicesView {...shared} />}
+        {tab === 'expenses' && <ExpensesView {...shared} />}
+      </div>
+      <nav style={sx.nav} className="no-print">
+        {[
+          ['home', Home, 'Home'],
+          ['routes', RouteIcon, 'Routes'],
+          ['inventory', Package, 'Stock'],
+          ['invoices', FileText, 'Invoices'],
+          ['expenses', Wallet, 'Money'],
+        ].map(([id, Icon, label]) => (
+          <button key={id} onClick={() => goTab(id)} style={sx.navBtn}>
+            <Icon size={22} color={tab === id ? C.green : C.sub} strokeWidth={tab === id ? 2.4 : 1.8} />
+            <span style={{ fontSize: 11, marginTop: 3, fontWeight: tab === id ? 700 : 500, color: tab === id ? C.green : C.sub }}>{label}</span>
+          </button>
+        ))}
+      </nav>
+    </div>
+  );
+}
+
+/* =====================================================================
+   STATS HELPERS
+===================================================================== */
+function storeStats(storeId, visits, productById) {
+  const vs = visits.filter(v => v.storeId === storeId);
+  const rev = vs.reduce((a, v) => a + v.total, 0);
+  const profit = vs.reduce((a, v) => a + v.lines.reduce((b, l) => b + l.refilled * ((l.price || 0) - (l.cost || 0)), 0), 0);
+  const last = vs.map(v => v.date).sort().slice(-1)[0];
+  const units = {};
+  vs.forEach(v => v.lines.forEach(l => { units[l.productId] = (units[l.productId] || 0) + l.sold; }));
+  const topEntry = Object.entries(units).sort((a, b) => b[1] - a[1])[0];
+  const top = topEntry && topEntry[1] > 0 ? { p: productById[topEntry[0]], units: topEntry[1] } : null;
+  return { rev, profit, last, top, visitCount: vs.length };
+}
+
+function routeStats(route, visits, productById) {
+  const ids = route.storeIds || [];
+  const vs = visits.filter(v => ids.includes(v.storeId));
+  const rev = vs.reduce((a, v) => a + v.total, 0);
+  const profit = vs.reduce((a, v) => a + v.lines.reduce((b, l) => b + l.refilled * ((l.price || 0) - (l.cost || 0)), 0), 0);
+  const units = {};
+  vs.forEach(v => v.lines.forEach(l => { units[l.productId] = (units[l.productId] || 0) + l.sold; }));
+  const topEntry = Object.entries(units).sort((a, b) => b[1] - a[1])[0];
+  const top = topEntry && topEntry[1] > 0 ? { p: productById[topEntry[0]], units: topEntry[1] } : null;
+  return { rev, profit, top };
+}
+
+function routeLoadSuggestion(route, stores, visits, productById) {
+  const totals = {};
+  (route.storeIds || []).forEach(sid => {
+    const store = stores.find(s => s.id === sid);
+    if (!store) return;
+    (store.products || []).forEach(sp => {
+      const sv = visits.filter(v => v.storeId === store.id)
+        .flatMap(v => v.lines.filter(l => l.productId === sp.productId).map(l => l.sold));
+      let est;
+      if (sv.length) est = Math.ceil(sv.slice(-3).reduce((a, b) => a + b, 0) / Math.min(sv.length, 3));
+      else est = sp.par;
+      totals[sp.productId] = (totals[sp.productId] || 0) + est;
+    });
+  });
+  return Object.entries(totals).map(([pid, qty]) => ({ p: productById[pid], qty }))
+    .filter(x => x.p && x.qty > 0).sort((a, b) => b.qty - a.qty);
+}
+
+/* =====================================================================
+   HOME
+===================================================================== */
+function HomeView({ routes, visits, trips, productById, setTab, meta, setMeta, products, stores, setProducts, setStores, setRoutes, setVisits, setTrips }) {
+  const rev30 = visits.filter(v => daysAgo(v.date) <= 30).reduce((a, v) => a + v.total, 0);
+  const profit30 = visits.filter(v => daysAgo(v.date) <= 30)
+    .reduce((a, v) => a + v.lines.reduce((b, l) => b + l.refilled * ((l.price || 0) - (l.cost || 0)), 0), 0);
+  const exp30 = trips.filter(t => daysAgo(t.date) <= 30).reduce((a, t) => a + t.gas + t.food + t.hotel + t.other, 0);
+
+  const [showSettings, setShowSettings] = useState(false);
+  const [bizName, setBizName] = useState(meta.business || '');
+  const [backupText, setBackupText] = useState('');
+  const [restoreText, setRestoreText] = useState('');
+  const [settingsMsg, setSettingsMsg] = useState('');
+
+  const saveBiz = () => {
+    setMeta({ ...meta, business: bizName.trim() || 'My Route Business' });
+    setSettingsMsg('Business name saved — it shows on every invoice.');
+  };
+
+  const makeBackup = () => {
+    setBackupText(JSON.stringify({ products, stores, routes, visits, trips, meta }, null, 0));
+    setSettingsMsg('Copy all the text below and keep it somewhere safe (notes app, email to yourself).');
+  };
+
+  const restore = () => {
+    try {
+      const d = JSON.parse(restoreText);
+      if (d.products) setProducts(d.products);
+      if (d.stores) setStores(d.stores);
+      if (d.routes) setRoutes(d.routes);
+      if (d.visits) setVisits(d.visits);
+      if (d.trips) setTrips(d.trips);
+      if (d.meta) { setMeta(d.meta); setBizName(d.meta.business || ''); }
+      setRestoreText('');
+      setSettingsMsg('Data restored! Everything is back.');
+    } catch (e) {
+      setSettingsMsg("That backup text doesn't look right — paste the whole thing, exactly as copied.");
+    }
+  };
+
+  return (
+    <div>
+      <Header title={meta.business || 'Your business at a glance'} sub="Last 30 days across every route" />
+      <div style={{ ...sx.row, padding: '0 16px', gap: 10 }}>
+        <Stat label="Sales" value={money(rev30)} tone="green" />
+        <Stat label="Profit on goods" value={money(profit30)} tone="green" />
+        <Stat label="Expenses" value={money(exp30)} tone="red" />
+      </div>
+      <div style={{ padding: '10px 16px 0' }}>
+        <div style={{ ...sx.card, background: C.greenSoft, border: `1px solid ${C.green}33`, ...sx.spread }}>
+          <span style={{ fontWeight: 700 }}>Net (profit − expenses)</span>
+          <span style={{ ...sx.num, fontWeight: 800, fontSize: 19, color: profit30 - exp30 >= 0 ? C.green : C.red }}>
+            {money(profit30 - exp30)}
+          </span>
+        </div>
+      </div>
+      <Section title="Your routes" icon={RouteIcon}>
+        {routes.length === 0
+          ? <Empty text="Everything starts with a route. Head to the Routes tab to make your first one." cta="Go to Routes" onCta={() => setTab('routes')} />
+          : routes.map(r => {
+            const st = routeStats(r, visits, productById);
+            return (
+              <div key={r.id} style={{ ...sx.card, ...sx.spread }} onClick={() => setTab('routes')}>
+                <div>
+                  <div style={{ fontWeight: 700 }}>{r.name}</div>
+                  <div style={sx.muted}>{(r.storeIds || []).length} stores{st.top ? ` · hot item: ${st.top.p?.name}` : ''}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ ...sx.num, fontWeight: 700 }}>{money(st.rev)}</div>
+                  <div style={{ ...sx.muted, color: C.green }}>{money(st.profit)} profit</div>
+                </div>
+              </div>
+            );
+          })}
+      </Section>
+
+      <Section title="Settings & backup" icon={Pencil}>
+        {!showSettings ? (
+          <button style={{ ...sx.outlineBtn, width: '100%', justifyContent: 'center' }} onClick={() => setShowSettings(true)}>
+            Business name, backup & restore
+          </button>
+        ) : (
+          <div style={sx.card}>
+            <Label>Your business name (shows on invoices)</Label>
+            <div style={sx.row}>
+              <input style={{ ...sx.input, flex: 1 }} placeholder="e.g. Smith Bros Snacks" value={bizName} onChange={e => setBizName(e.target.value)} />
+              <button style={sx.primaryBtn} onClick={saveBiz}><Check size={16} /></button>
+            </div>
+
+            <div style={{ borderTop: `1px solid ${C.line}`, marginTop: 14, paddingTop: 12 }}>
+              <Label>Back up everything</Label>
+              <button style={{ ...sx.outlineBtn, width: '100%', justifyContent: 'center' }} onClick={makeBackup}>
+                Create backup text
+              </button>
+              {backupText && (
+                <textarea
+                  readOnly value={backupText} onFocus={e => e.target.select()}
+                  style={{ ...sx.input, marginTop: 8, height: 80, fontSize: 11, fontFamily: 'monospace' }}
+                />
+              )}
+            </div>
+
+            <div style={{ borderTop: `1px solid ${C.line}`, marginTop: 14, paddingTop: 12 }}>
+              <Label>Restore from a backup</Label>
+              <textarea
+                placeholder="Paste your backup text here…"
+                value={restoreText} onChange={e => setRestoreText(e.target.value)}
+                style={{ ...sx.input, height: 60, fontSize: 11, fontFamily: 'monospace' }}
+              />
+              <button style={{ ...sx.primaryBtn, width: '100%', justifyContent: 'center', marginTop: 8 }} onClick={restore}>
+                Restore my data
+              </button>
+            </div>
+
+            {settingsMsg && <p style={{ ...sx.muted, marginTop: 10, color: C.green, fontWeight: 600 }}>{settingsMsg}</p>}
+            <button style={{ ...sx.dangerBtn, marginTop: 12 }} onClick={() => { setShowSettings(false); setSettingsMsg(''); setBackupText(''); }}>
+              <X size={15} /> Close settings
+            </button>
+          </div>
+        )}
+      </Section>
+      <div style={{ height: 24 }} />
+    </div>
+  );
+}
+
+/* =====================================================================
+   ROUTES FLOW — one smooth drill-down
+===================================================================== */
+function RoutesFlow(props) {
+  const { nav } = props;
+  if (nav.routeId && nav.storeId && nav.counting) return <CountScreen {...props} />;
+  if (nav.routeId && nav.storeId) return <StoreScreen {...props} />;
+  if (nav.routeId) return <RouteScreenImpl {...props} />;
+  return <RoutesHome {...props} />;
+}
+
+/* ---- level 1: all routes ---- */
+function RoutesHome({ routes, setRoutes, visits, productById, setNav }) {
+  const [name, setName] = useState('');
+  const add = () => {
+    if (!name.trim()) return;
+    const r = { id: uid(), name: name.trim(), storeIds: [] };
+    setRoutes([...routes, r]);
+    setName('');
+    setNav({ routeId: r.id, storeId: null, counting: false }); // jump straight in
+  };
+  return (
+    <div>
+      <Header title="Routes" sub="Tap a route to see its stores, or make a new one" />
+      <div style={{ padding: '8px 16px' }}>
+        <div style={{ ...sx.card, ...sx.row }}>
+          <input style={{ ...sx.input, flex: 1 }} placeholder="New route, e.g. North side – Tuesdays" value={name} onChange={e => setName(e.target.value)} />
+          <button style={sx.primaryBtn} onClick={add}><Plus size={16} /></button>
+        </div>
+        {routes.length === 0 && <Empty text="A route is one run — the group of stores you hit in a day. Create one above and you'll add stores right inside it." />}
+        {routes.map(r => {
+          const st = routeStats(r, visits, productById);
+          return (
+            <div key={r.id} style={{ ...sx.card, ...sx.spread, cursor: 'pointer' }} onClick={() => setNav({ routeId: r.id, storeId: null, counting: false })}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 16 }}>{r.name}</div>
+                <div style={sx.muted}>{(r.storeIds || []).length} stores · {money(st.rev)} sales · <span style={{ color: C.green }}>{money(st.profit)} profit</span></div>
+              </div>
+              <ChevronRight size={20} color={C.green} />
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ height: 24 }} />
+    </div>
+  );
+}
+
+/* ---- level 2: one route — stats, stores w/ stats, add store inline ---- */
+function RouteScreenImpl({ routes, setRoutes, stores, setStores, visits, productById, nav, setNav }) {
+  const route = routes.find(r => r.id === nav.routeId);
+  const [sName, setSName] = useState('');
+  const [sAddr, setSAddr] = useState('');
+  const [showAdd, setShowAdd] = useState(false);
+  if (!route) { setNav({ routeId: null, storeId: null, counting: false }); return null; }
+
+  const st = routeStats(route, visits, productById);
+  const memberStores = (route.storeIds || []).map(id => stores.find(s => s.id === id)).filter(Boolean);
+  const suggestion = routeLoadSuggestion(route, stores, visits, productById);
+
+  const addStore = () => {
+    if (!sName.trim()) return;
+    const s = { id: uid(), name: sName.trim(), address: sAddr.trim(), products: [] };
+    setStores([...stores, s]);
+    setRoutes(routes.map(r => r.id === route.id ? { ...r, storeIds: [...(r.storeIds || []), s.id] } : r));
+    setSName(''); setSAddr(''); setShowAdd(false);
+    setNav({ routeId: route.id, storeId: s.id, counting: false }); // straight into the new store
+  };
+
+  return (
+    <div>
+      <div style={sx.headerWrap}>
+        <button style={sx.backBtn} onClick={() => setNav({ routeId: null, storeId: null, counting: false })}><ArrowLeft size={16} /> All routes</button>
+        <h1 style={sx.h1}>{route.name}</h1>
+        <div style={{ ...sx.row, gap: 14, marginTop: 6, flexWrap: 'wrap' }}>
+          <span style={sx.muted}>Sales <b style={{ color: C.ink }}>{money(st.rev)}</b></span>
+          <span style={sx.muted}>Profit <b style={{ color: C.green }}>{money(st.profit)}</b></span>
+          {st.top && <span style={sx.muted}>Hot: <b style={{ color: C.amber }}>{st.top.p?.name}</b></span>}
+        </div>
+      </div>
+
+      <div style={{ padding: '4px 16px' }}>
+        {suggestion.length > 0 && (
+          <div style={{ ...sx.card, background: C.amberSoft, border: `1px solid ${C.amber}44` }}>
+            <div style={{ ...sx.row, alignItems: 'center', gap: 6, marginBottom: 8 }}>
+              <Package size={15} color={C.amber} /><b style={{ fontSize: 14 }}>Load up for this route</b>
+            </div>
+            {suggestion.map(({ p, qty }) => (
+              <div key={p.id} style={sx.lineRow}><span>{p.name}</span><b style={sx.num}>{qty}</b></div>
+            ))}
+          </div>
+        )}
+
+        {memberStores.length === 0 && !showAdd &&
+          <Empty text="No stores on this route yet. Add your first one below — you'll set up its items right after." />}
+
+        {memberStores.map(s => {
+          const ss = storeStats(s.id, visits, productById);
+          const doneToday = visits.some(v => v.storeId === s.id && v.date === todayISO());
+          const openRems = (s.reminders || []).filter(r => !r.done).length;
+          return (
+            <div key={s.id} style={{ ...sx.card, cursor: 'pointer' }} onClick={() => setNav({ routeId: route.id, storeId: s.id, counting: false })}>
+              <div style={sx.spread}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 15 }}>
+                    {s.name} {doneToday && <Check size={15} color={C.green} style={{ verticalAlign: -2 }} />}
+                  </div>
+                  <div style={sx.muted}>
+                    {ss.last ? `Last visit ${daysAgo(ss.last)}d ago` : 'Never visited'}
+                    {openRems > 0 && <b style={{ color: C.amber }}> · {openRems} reminder{openRems > 1 ? 's' : ''}</b>}
+                  </div>
+                </div>
+                <ChevronRight size={20} color={C.green} />
+              </div>
+              <div style={{ ...sx.row, marginTop: 10, gap: 8 }}>
+                <MiniStat label="Sales" v={money(ss.rev)} />
+                <MiniStat label="Profit" v={money(ss.profit)} color={C.green} />
+                <MiniStat label="Top mover" v={ss.top ? `${ss.top.p?.name} (${ss.top.units})` : '—'} color={C.amber} small />
+              </div>
+            </div>
+          );
+        })}
+
+        {/* add store inline */}
+        {showAdd ? (
+          <div style={sx.card}>
+            <Label>New store on this route</Label>
+            <input style={sx.input} placeholder="Store name" value={sName} onChange={e => setSName(e.target.value)} autoFocus />
+            <input style={{ ...sx.input, marginTop: 8 }} placeholder="Address (optional)" value={sAddr} onChange={e => setSAddr(e.target.value)} />
+            <div style={{ ...sx.row, marginTop: 10 }}>
+              <button style={{ ...sx.primaryBtn, flex: 1, justifyContent: 'center' }} onClick={addStore}><Check size={16} /> Add & set up</button>
+              <button style={{ ...sx.dangerBtn }} onClick={() => setShowAdd(false)}><X size={15} /></button>
+            </div>
+          </div>
+        ) : (
+          <button style={{ ...sx.outlineBtn, width: '100%', justifyContent: 'center' }} onClick={() => setShowAdd(true)}>
+            <Plus size={17} /> Add a store to this route
+          </button>
+        )}
+
+        <button style={{ ...sx.dangerBtn, marginTop: 16 }} onClick={() => {
+          if (window.confirm('Delete this route? Stores and their history stay saved.')) {
+            setRoutes(routes.filter(r => r.id !== route.id));
+            setNav({ routeId: null, storeId: null, counting: false });
+          }
+        }}>
+          <Trash2 size={15} /> Delete route
+        </button>
+      </div>
+      <div style={{ height: 24 }} />
+    </div>
+  );
+}
+
+/* ---- level 3: one store — stats, items, visit button, history ---- */
+function StoreScreen({ routes, stores, setStores, products, setProducts, visits, productById, nav, setNav, meta, setTab }) {
+  const store = stores.find(s => s.id === nav.storeId);
+  const [editName, setEditName] = useState(false);
+  const [tmpName, setTmpName] = useState('');
+  const [printing, setPrinting] = useState(null);
+  if (!store) { setNav({ routeId: nav.routeId, storeId: null, counting: false }); return null; }
+
+  const doPrint = (v) => { setPrinting(v); setTimeout(() => window.print(), 60); };
+
+  const ss = storeStats(store.id, visits, productById);
+  const storeVisits = visits.filter(v => v.storeId === store.id).slice(0, 5);
+  const update = (patch) => setStores(stores.map(s => s.id === store.id ? { ...s, ...patch } : s));
+
+  return (
+    <div>
+      <div style={sx.headerWrap}>
+        <button style={sx.backBtn} onClick={() => setNav({ routeId: nav.routeId, storeId: null, counting: false })}>
+          <ArrowLeft size={16} /> {routes.find(r => r.id === nav.routeId)?.name || 'Route'}
+        </button>
+        {editName ? (
+          <div style={sx.row}>
+            <input style={{ ...sx.input, flex: 1 }} value={tmpName} onChange={e => setTmpName(e.target.value)} autoFocus />
+            <button style={sx.primaryBtn} onClick={() => { if (tmpName.trim()) update({ name: tmpName.trim() }); setEditName(false); }}><Check size={16} /></button>
+          </div>
+        ) : (
+          <h1 style={sx.h1} onClick={() => { setTmpName(store.name); setEditName(true); }}>
+            {store.name} <Pencil size={14} color={C.sub} style={{ verticalAlign: 2 }} />
+          </h1>
+        )}
+        <p style={sx.headerSub}><MapPin size={12} style={{ verticalAlign: -2 }} /> {store.address || 'No address'}</p>
+      </div>
+
+      <div style={{ padding: '4px 16px' }}>
+        {/* stats */}
+        <div style={{ ...sx.row, gap: 8, marginBottom: 10 }}>
+          <MiniStat label="Sales" v={money(ss.rev)} />
+          <MiniStat label="Profit" v={money(ss.profit)} color={C.green} />
+          <MiniStat label="Top mover" v={ss.top ? `${ss.top.p?.name} (${ss.top.units})` : '—'} color={C.amber} small />
+        </div>
+
+        {/* THE button */}
+        <button
+          style={{ ...sx.primaryBtn, width: '100%', justifyContent: 'center', padding: '14px', fontSize: 16, marginBottom: 14 }}
+          onClick={() => setNav({ ...nav, counting: true })}
+          disabled={(store.products || []).length === 0}
+        >
+          <Truck size={19} /> I'm here — log a visit
+        </button>
+        {(store.products || []).length === 0 &&
+          <p style={{ ...sx.muted, textAlign: 'center', marginTop: -8, marginBottom: 12 }}>Add items below first, then you can log visits</p>}
+
+        {/* items on shelf */}
+        <SectionInline title="Items this store carries (price is for this store)">
+          {(store.products || []).map(sp => {
+            const p = productById[sp.productId];
+            if (!p) return null;
+            const storePrice = sp.price ?? p.price ?? 0;
+            return (
+              <div key={sp.productId} style={{ padding: '8px 0', borderBottom: `1px solid ${C.line}` }}>
+                <div style={sx.spread}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600 }}>{p.name}</div>
+                    <div style={sx.muted}>costs you {money(p.cost || 0)} · margin <b style={{ color: storePrice - (p.cost || 0) >= 0 ? C.green : C.red }}>{money(storePrice - (p.cost || 0))}</b></div>
+                  </div>
+                  <button style={sx.iconBtn} onClick={() => update({ products: store.products.filter(x => x.productId !== sp.productId) })}>
+                    <X size={16} color={C.red} />
+                  </button>
+                </div>
+                <div style={{ ...sx.row, marginTop: 6, alignItems: 'center', gap: 12 }}>
+                  <div style={{ ...sx.row, alignItems: 'center', gap: 5 }}>
+                    <span style={sx.muted}>price $</span>
+                    <input
+                      style={{ ...sx.miniInput, width: 64 }} inputMode="decimal"
+                      value={sp.price ?? ''}
+                      placeholder={String(p.price || 0)}
+                      onChange={e => update({ products: store.products.map(x => x.productId === sp.productId ? { ...x, price: e.target.value === '' ? undefined : parseFloat(e.target.value) || 0 } : x) })}
+                    />
+                  </div>
+                  <div style={{ ...sx.row, alignItems: 'center', gap: 5 }}>
+                    <span style={sx.muted}>keep</span>
+                    <input
+                      style={sx.miniInput} inputMode="numeric" value={sp.par}
+                      onChange={e => update({ products: store.products.map(x => x.productId === sp.productId ? { ...x, par: parseInt(e.target.value) || 0 } : x) })}
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          <AddItemInline
+            products={products}
+            existing={(store.products || []).map(x => x.productId)}
+            onAdd={(pid, par, price) => update({ products: [...(store.products || []), { productId: pid, par, price, onShelf: 0 }] })}
+            goStock={() => setTab && setTab('inventory')}
+          />
+        </SectionInline>
+
+        {/* contact, notes & reminders */}
+        <StoreContactSection store={store} update={update} />
+
+        {/* recent visits */}
+        {storeVisits.length > 0 && (
+          <SectionInline title="Recent visits & invoices">
+            {storeVisits.map(v => (
+              <div key={v.id} style={sx.lineRow}>
+                <span style={sx.muted}>{v.date} · inv #{v.invoiceNo}</span>
+                <div style={{ ...sx.row, alignItems: 'center' }}>
+                  <b style={sx.num}>{money(v.total)}</b>
+                  <button style={sx.iconBtn} onClick={() => doPrint(v)}>
+                    <Printer size={17} color={C.green} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </SectionInline>
+        )}
+
+        <button style={{ ...sx.dangerBtn, marginTop: 14 }} onClick={() => {
+          if (window.confirm('Delete this store and remove it from the route? Its sales history stays in invoices.')) {
+            setStores(stores.filter(s => s.id !== store.id));
+            setNav({ routeId: nav.routeId, storeId: null, counting: false });
+          }
+        }}>
+          <Trash2 size={15} /> Delete store
+        </button>
+      </div>
+      <div style={{ height: 24 }} />
+
+      {printing && (
+        <div className="print-area">
+          <InvoiceSheet visit={printing} store={store} business={meta.business} onClose={() => setPrinting(null)} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* contact people, store notes, and reminders for one store */
+function StoreContactSection({ store, update }) {
+  const [showAddContact, setShowAddContact] = useState(false);
+  const [cName, setCName] = useState('');
+  const [cRole, setCRole] = useState('');
+  const [cPhone, setCPhone] = useState('');
+  const [remText, setRemText] = useState('');
+
+  const contacts = store.contacts || [];
+  const reminders = store.reminders || [];
+
+  const addContact = () => {
+    if (!cName.trim()) return;
+    update({ contacts: [...contacts, { id: uid(), name: cName.trim(), role: cRole.trim(), phone: cPhone.trim() }] });
+    setCName(''); setCRole(''); setCPhone(''); setShowAddContact(false);
+  };
+
+  const addReminder = () => {
+    if (!remText.trim()) return;
+    update({ reminders: [...reminders, { id: uid(), text: remText.trim(), done: false }] });
+    setRemText('');
+  };
+
+  return (
+    <>
+      <SectionInline title="Invoice email">
+        <input
+          style={sx.input} type="email" inputMode="email" placeholder="store@example.com"
+          value={store.email || ''}
+          onChange={e => update({ email: e.target.value })}
+        />
+        <p style={{ ...sx.muted, marginTop: 6, fontSize: 12 }}>Invoices for this store will be addressed here when you tap "Email invoice."</p>
+      </SectionInline>
+
+      <SectionInline title="Who to talk to">
+        {contacts.length === 0 && !showAddContact &&
+          <p style={sx.muted}>Add the owner or manager so the name and number are always one tap away.</p>}
+        {contacts.map(c => (
+          <div key={c.id} style={sx.lineRow}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600 }}>{c.name}{c.role ? <span style={{ ...sx.muted, fontWeight: 400 }}> · {c.role}</span> : null}</div>
+              {c.phone && <a href={'tel:' + c.phone.replace(/[^0-9+]/g, '')} style={{ color: C.green, fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>{c.phone}</a>}
+            </div>
+            <button style={sx.iconBtn} onClick={() => update({ contacts: contacts.filter(x => x.id !== c.id) })}>
+              <X size={16} color={C.red} />
+            </button>
+          </div>
+        ))}
+        {showAddContact ? (
+          <div style={{ marginTop: 10, background: C.bg, borderRadius: 12, padding: 12 }}>
+            <input style={sx.input} placeholder="Name" value={cName} onChange={e => setCName(e.target.value)} autoFocus />
+            <div style={{ ...sx.row, marginTop: 8 }}>
+              <input style={{ ...sx.input, flex: 1, minWidth: 0 }} placeholder="Owner / manager" value={cRole} onChange={e => setCRole(e.target.value)} />
+              <input style={{ ...sx.input, flex: 1, minWidth: 0 }} placeholder="Phone" inputMode="tel" value={cPhone} onChange={e => setCPhone(e.target.value)} />
+            </div>
+            <div style={{ ...sx.row, marginTop: 10 }}>
+              <button style={{ ...sx.primaryBtn, flex: 1, justifyContent: 'center' }} onClick={addContact}><Check size={15} /> Save contact</button>
+              <button style={sx.dangerBtn} onClick={() => setShowAddContact(false)}><X size={15} /></button>
+            </div>
+          </div>
+        ) : (
+          <button style={{ ...sx.outlineBtn, marginTop: 10 }} onClick={() => setShowAddContact(true)}>
+            <Plus size={15} /> Add a person
+          </button>
+        )}
+      </SectionInline>
+
+      <SectionInline title="Store notes">
+        <textarea
+          placeholder="Anything worth remembering — gate code, best delivery time, what the owner likes…"
+          value={store.notes || ''}
+          onChange={e => update({ notes: e.target.value })}
+          style={{ ...sx.input, height: 64, resize: 'vertical', fontSize: 14 }}
+        />
+      </SectionInline>
+
+      <SectionInline title="Reminders for this store">
+        {reminders.map(r => (
+          <div key={r.id} style={sx.lineRow}>
+            <button
+              style={{ ...sx.iconBtn, paddingLeft: 0 }}
+              onClick={() => update({ reminders: reminders.map(x => x.id === r.id ? { ...x, done: !x.done } : x) })}>
+              <div style={{
+                width: 20, height: 20, borderRadius: 6, border: `2px solid ${r.done ? C.green : C.sub}`,
+                background: r.done ? C.green : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>
+                {r.done && <Check size={13} color="#fff" strokeWidth={3} />}
+              </div>
+            </button>
+            <span style={{ flex: 1, textDecoration: r.done ? 'line-through' : 'none', color: r.done ? C.sub : C.ink, fontSize: 14 }}>
+              {r.text}
+            </span>
+            <button style={sx.iconBtn} onClick={() => update({ reminders: reminders.filter(x => x.id !== r.id) })}>
+              <Trash2 size={15} color={C.red} />
+            </button>
+          </div>
+        ))}
+        <div style={{ ...sx.row, marginTop: 8 }}>
+          <input
+            style={{ ...sx.input, flex: 1 }} placeholder="e.g. Bring more turkey sticks next time"
+            value={remText} onChange={e => setRemText(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') addReminder(); }}
+          />
+          <button style={sx.primaryBtn} onClick={addReminder}><Plus size={16} /></button>
+        </div>
+      </SectionInline>
+    </>
+  );
+}
+
+/* add item to store — pick from stock, set THIS store's price */
+function AddItemInline({ products, existing, onAdd, goStock }) {
+  const [open, setOpen] = useState(false);
+  const [pid, setPid] = useState('');
+  const [price, setPrice] = useState('');
+  const [par, setPar] = useState('');
+  const avail = products.filter(p => !existing.includes(p.id));
+
+  const reset = () => { setOpen(false); setPid(''); setPrice(''); setPar(''); };
+
+  if (!open) return (
+    <button style={{ ...sx.outlineBtn, marginTop: 10 }} onClick={() => setOpen(true)}>
+      <Plus size={15} /> Add item from stock
+    </button>
+  );
+
+  if (avail.length === 0) return (
+    <div style={{ marginTop: 10, background: C.bg, borderRadius: 12, padding: 12 }}>
+      <p style={{ ...sx.muted, margin: 0 }}>
+        Everything in your stock is already on this shelf. Add new products in the <b>Stock</b> tab first, then come back here.
+      </p>
+      <div style={{ ...sx.row, marginTop: 10 }}>
+        {goStock && <button style={{ ...sx.primaryBtn, flex: 1, justifyContent: 'center' }} onClick={goStock}><Package size={15} /> Go to Stock</button>}
+        <button style={sx.dangerBtn} onClick={reset}><X size={15} /></button>
+      </div>
+    </div>
+  );
+
+  const chosen = products.find(p => p.id === pid);
+
+  return (
+    <div style={{ marginTop: 10, background: C.bg, borderRadius: 12, padding: 12 }}>
+      <Label>Pick from your stock</Label>
+      <select style={sx.input} value={pid} onChange={e => setPid(e.target.value)}>
+        <option value="">Choose a product…</option>
+        {avail.map(p => <option key={p.id} value={p.id}>{p.name} ({(p.stock || 0)} on hand)</option>)}
+      </select>
+      {chosen && <p style={{ ...sx.muted, marginTop: 6, fontSize: 12 }}>Costs you {money(chosen.cost || 0)} each</p>}
+      <div style={{ ...sx.row, marginTop: 8 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <Label>Price at this store</Label>
+          <input style={sx.input} inputMode="decimal" placeholder="0.00" value={price} onChange={e => setPrice(e.target.value)} />
+        </div>
+        <div style={{ width: 84 }}>
+          <Label>Keep stocked</Label>
+          <input style={{ ...sx.input, textAlign: 'center' }} inputMode="numeric" placeholder="0" value={par} onChange={e => setPar(e.target.value)} />
+        </div>
+      </div>
+      <div style={{ ...sx.row, marginTop: 10 }}>
+        <button style={{ ...sx.primaryBtn, flex: 1, justifyContent: 'center' }} onClick={() => {
+          if (!pid) return;
+          onAdd(pid, parseInt(par) || 0, parseFloat(price) || 0);
+          reset();
+        }}><Check size={15} /> Add to shelf</button>
+        <button style={sx.dangerBtn} onClick={reset}><X size={15} /></button>
+      </div>
+    </div>
+  );
+}
+
+/* ---- level 4: the count / visit screen ---- */
+function CountScreen({ stores, setStores, visits, setVisits, products, setProducts, productById, meta, setMeta, nav, setNav }) {
+  const store = stores.find(s => s.id === nav.storeId);
+  const [counts, setCounts] = useState({});
+  if (!store) { setNav({ ...nav, counting: false }); return null; }
+
+  const lines = (store.products || []).map(sp => {
+    const p = productById[sp.productId];
+    const counted = counts[sp.productId] === '' || counts[sp.productId] == null ? null : parseInt(counts[sp.productId]) || 0;
+    const onShelfBefore = sp.onShelf || 0;
+    const sold = counted == null ? 0 : Math.max(0, onShelfBefore - counted);
+    const refill = counted == null ? 0 : Math.max(0, sp.par - counted);
+    const stockHave = p?.stock || 0;
+    const short = counted != null && refill > stockHave;
+    const price = sp.price ?? p?.price ?? 0;
+    return { sp, p, counted, onShelfBefore, sold, refill, stockHave, short, price, lineTotal: refill * price };
+  }).filter(l => l.p);
+
+  const invoiceTotal = lines.reduce((a, l) => a + l.lineTotal, 0);
+  const allCounted = lines.length > 0 && lines.every(l => l.counted != null);
+  const anyShort = lines.some(l => l.short);
+
+  const finish = () => {
+    const invNo = meta.invoiceCounter;
+    setVisits([{
+      id: uid(), storeId: store.id, date: todayISO(), invoiceNo: invNo, total: invoiceTotal,
+      lines: lines.map(l => ({
+        productId: l.p.id, name: l.p.name, price: l.price, cost: l.p.cost || 0,
+        counted: l.counted, sold: l.sold, refilled: l.refill, lineTotal: l.lineTotal
+      })),
+    }, ...visits]);
+    setStores(stores.map(s => s.id === store.id
+      ? { ...s, products: s.products.map(sp => ({ ...sp, onShelf: sp.par })) } : s));
+    // pull the refilled units out of his stock automatically
+    const refillByPid = Object.fromEntries(lines.map(l => [l.p.id, l.refill]));
+    setProducts(products.map(p => refillByPid[p.id]
+      ? { ...p, stock: Math.max(0, (p.stock || 0) - refillByPid[p.id]) } : p));
+    setMeta({ ...meta, invoiceCounter: invNo + 1 });
+    setNav({ ...nav, counting: false });
+    alert(`Visit saved. Invoice #${invNo} for ${money(invoiceTotal)}. Stock updated.`);
+  };
+
+  return (
+    <div>
+      <div style={{ ...sx.headerWrap, paddingBottom: 8 }}>
+        <button style={sx.backBtn} onClick={() => setNav({ ...nav, counting: false })}><ArrowLeft size={16} /> {store.name}</button>
+        <h1 style={sx.h1}>Count the shelf</h1>
+        <p style={sx.headerSub}>Type what's left of each item — I'll figure out sold & refill</p>
+      </div>
+      <div style={{ padding: '4px 16px' }}>
+        {lines.map(l => (
+          <div key={l.p.id} style={sx.card}>
+            <div style={sx.spread}>
+              <div style={{ fontWeight: 700 }}>{l.p.name}</div>
+              <div style={sx.muted}>keep {l.sp.par} · {money(l.price)}</div>
+            </div>
+            <div style={{ ...sx.row, marginTop: 10, alignItems: 'center' }}>
+              <div style={{ flex: 1 }}>
+                <Label>On shelf now</Label>
+                <input
+                  style={{ ...sx.input, fontSize: 18, fontWeight: 700, textAlign: 'center' }}
+                  inputMode="numeric" placeholder="0"
+                  value={counts[l.p.id] ?? ''}
+                  onChange={e => setCounts({ ...counts, [l.p.id]: e.target.value })}
+                />
+              </div>
+              <div style={{ flex: 1.4, paddingLeft: 12 }}>
+                {l.counted == null
+                  ? <span style={sx.muted}>Last filled to {l.onShelfBefore} · you have {l.stockHave}</span>
+                  : <div style={{ fontSize: 13 }}>
+                      <div>Sold: <b style={{ color: C.amber }}>{l.sold}</b></div>
+                      <div>Refill: <b style={{ color: l.short ? C.red : C.green }}>{l.refill}</b> → {money(l.lineTotal)}</div>
+                      {l.short && <div style={{ color: C.red, fontWeight: 700 }}>only {l.stockHave} in stock!</div>}
+                    </div>}
+              </div>
+            </div>
+          </div>
+        ))}
+        <div style={{ ...sx.card, background: C.greenSoft, border: `1px solid ${C.green}33` }}>
+          <div style={sx.spread}>
+            <span style={{ fontWeight: 700 }}>Invoice total</span>
+            <span style={{ ...sx.num, fontSize: 22, fontWeight: 800, color: C.green }}>{money(invoiceTotal)}</span>
+          </div>
+          <button
+            style={{ ...sx.primaryBtn, width: '100%', justifyContent: 'center', marginTop: 12, opacity: allCounted ? 1 : .5 }}
+            disabled={!allCounted} onClick={finish}>
+            <Check size={18} /> Save visit & create invoice
+          </button>
+          {!allCounted && <p style={{ ...sx.muted, textAlign: 'center', marginBottom: 0 }}>Count every item to finish</p>}
+          {allCounted && anyShort && <p style={{ ...sx.muted, textAlign: 'center', marginBottom: 0, color: C.red, fontWeight: 600 }}>
+            Heads up: some refills are more than you have in stock. You can still save — stock just goes to zero.
+          </p>}
+        </div>
+      </div>
+      <div style={{ height: 24 }} />
+    </div>
+  );
+}
+
+/* =====================================================================
+   INVENTORY — everything he has on hand; visits pull from this
+===================================================================== */
+function InventoryView({ products, setProducts, stores }) {
+  const [addingPid, setAddingPid] = useState(null);
+  const [addQty, setAddQty] = useState('');
+  const [showNew, setShowNew] = useState(false);
+  const [nName, setNName] = useState('');
+  const [nCost, setNCost] = useState('');
+  const [nStock, setNStock] = useState('');
+  const [editPid, setEditPid] = useState(null);
+  const [eName, setEName] = useState('');
+  const [eCost, setECost] = useState('');
+
+  const totalValue = products.reduce((a, p) => a + (p.stock || 0) * (p.cost || 0), 0);
+  const totalUnits = products.reduce((a, p) => a + (p.stock || 0), 0);
+
+  const addStock = (p) => {
+    const q = parseInt(addQty) || 0;
+    if (q !== 0) setProducts(products.map(x => x.id === p.id ? { ...x, stock: Math.max(0, (x.stock || 0) + q) } : x));
+    setAddingPid(null); setAddQty('');
+  };
+
+  const createProduct = () => {
+    if (!nName.trim()) return;
+    setProducts([...products, {
+      id: uid(), name: nName.trim(), cost: parseFloat(nCost) || 0,
+      price: 0, stock: parseInt(nStock) || 0
+    }]);
+    setNName(''); setNCost(''); setNStock(''); setShowNew(false);
+  };
+
+  return (
+    <div>
+      <Header title="Your stock" sub="Add products here, set each store's price when you stock them" />
+      <div style={{ ...sx.row, padding: '0 16px', gap: 10 }}>
+        <Stat label="Total units" value={totalUnits.toLocaleString()} tone="green" />
+        <Stat label="Value (your cost)" value={money(totalValue)} tone="green" />
+      </div>
+      <div style={{ padding: '12px 16px' }}>
+
+        {/* new product */}
+        {showNew ? (
+          <div style={sx.card}>
+            <Label>New product</Label>
+            <input style={sx.input} placeholder="e.g. Hot Cheetos, Turkey sticks" value={nName} onChange={e => setNName(e.target.value)} autoFocus />
+            <div style={{ ...sx.row, marginTop: 8 }}>
+              <div style={{ flex: 1, minWidth: 0 }}><Label>Costs you (each)</Label>
+                <input style={sx.input} inputMode="decimal" placeholder="0.00" value={nCost} onChange={e => setNCost(e.target.value)} /></div>
+              <div style={{ flex: 1, minWidth: 0 }}><Label>Units on hand</Label>
+                <input style={sx.input} inputMode="numeric" placeholder="0" value={nStock} onChange={e => setNStock(e.target.value)} /></div>
+            </div>
+            <div style={{ ...sx.row, marginTop: 10 }}>
+              <button style={{ ...sx.primaryBtn, flex: 1, justifyContent: 'center' }} onClick={createProduct}><Check size={16} /> Add to stock</button>
+              <button style={sx.dangerBtn} onClick={() => setShowNew(false)}><X size={15} /></button>
+            </div>
+            <p style={{ ...sx.muted, marginTop: 8, fontSize: 12 }}>You'll set the selling price per store — every store can have its own price.</p>
+          </div>
+        ) : (
+          <button style={{ ...sx.primaryBtn, width: '100%', justifyContent: 'center', marginBottom: 10 }} onClick={() => setShowNew(true)}>
+            <Plus size={16} /> Add a new product
+          </button>
+        )}
+
+        {products.length === 0 && !showNew &&
+          <Empty text="This is home base for everything you sell. Add your products here, then put them in stores from the Routes tab." />}
+
+        {products.map(p => {
+          const stock = p.stock || 0;
+          const low = stock > 0 && stock <= 10;
+          const out = stock === 0;
+          const isEditing = editPid === p.id;
+
+          if (isEditing) return (
+            <div key={p.id} style={sx.card}>
+              <Label>Edit product</Label>
+              <input style={sx.input} value={eName} onChange={e => setEName(e.target.value)} autoFocus />
+              <div style={{ marginTop: 8 }}><Label>Costs you (each)</Label>
+                <input style={sx.input} inputMode="decimal" value={eCost} onChange={e => setECost(e.target.value)} /></div>
+              <div style={{ ...sx.row, marginTop: 10 }}>
+                <button style={{ ...sx.primaryBtn, flex: 1, justifyContent: 'center' }} onClick={() => {
+                  if (!eName.trim()) return;
+                  setProducts(products.map(x => x.id === p.id ? { ...x, name: eName.trim(), cost: parseFloat(eCost) || 0 } : x));
+                  setEditPid(null);
+                }}><Check size={15} /> Save</button>
+                <button style={sx.dangerBtn} onClick={() => setEditPid(null)}><X size={15} /></button>
+              </div>
+            </div>
+          );
+
+          return (
+            <div key={p.id} style={sx.card}>
+              <div style={sx.spread}>
+                <div>
+                  <div style={{ fontWeight: 700 }}>{p.name}</div>
+                  <div style={sx.muted}>costs you {money(p.cost || 0)} each</div>
+                </div>
+                <div style={{ ...sx.row, alignItems: 'center' }}>
+                  <div style={{ textAlign: 'right', marginRight: 4 }}>
+                    <div style={{ ...sx.num, fontWeight: 800, fontSize: 20, color: out ? C.red : low ? C.amber : C.green }}>
+                      {stock}
+                    </div>
+                    <div style={{ ...sx.muted, fontSize: 11 }}>{out ? 'OUT' : low ? 'running low' : 'on hand'}</div>
+                  </div>
+                  <button style={sx.iconBtn} onClick={() => { setEditPid(p.id); setEName(p.name); setECost(String(p.cost ?? '')); }}>
+                    <Pencil size={16} color={C.green} />
+                  </button>
+                  <button style={sx.iconBtn} onClick={() => {
+                    if (window.confirm('Delete ' + p.name + ' from your stock? It will also disappear from store shelves.'))
+                      setProducts(products.filter(x => x.id !== p.id));
+                  }}>
+                    <Trash2 size={16} color={C.red} />
+                  </button>
+                </div>
+              </div>
+              {addingPid === p.id ? (
+                <div style={{ ...sx.row, marginTop: 10 }}>
+                  <input
+                    style={{ ...sx.input, flex: 1, textAlign: 'center', fontWeight: 700 }}
+                    inputMode="numeric" placeholder="How many did you buy?" autoFocus
+                    value={addQty} onChange={e => setAddQty(e.target.value)}
+                  />
+                  <button style={sx.primaryBtn} onClick={() => addStock(p)}><Check size={16} /></button>
+                  <button style={sx.dangerBtn} onClick={() => { setAddingPid(null); setAddQty(''); }}><X size={15} /></button>
+                </div>
+              ) : (
+                <button style={{ ...sx.outlineBtn, marginTop: 10, width: '100%', justifyContent: 'center' }}
+                  onClick={() => { setAddingPid(p.id); setAddQty(''); }}>
+                  <Plus size={15} /> Restock (bought more)
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ height: 24 }} />
+    </div>
+  );
+}
+
+/* =====================================================================
+   INVOICES
+===================================================================== */
+function InvoicesView({ visits, storeById, meta }) {
+  const [printing, setPrinting] = useState(null);
+  const doPrint = (v) => { setPrinting(v); setTimeout(() => window.print(), 60); };
+  return (
+    <div>
+      <Header title="Invoices" sub="Tap the printer on any visit" />
+      <div style={{ padding: '8px 16px' }}>
+        {visits.length === 0 && <Empty text="Invoices show up here automatically after you log a visit." />}
+        {visits.map(v => {
+          const store = storeById[v.storeId];
+          return (
+            <div key={v.id} style={{ ...sx.card, ...sx.spread }}>
+              <div>
+                <div style={{ fontWeight: 700 }}>#{v.invoiceNo} · {store?.name || 'Store'}</div>
+                <div style={sx.muted}>{v.date} · {v.lines.filter(l => l.refilled > 0).length} items</div>
+              </div>
+              <div style={sx.row}>
+                <div style={{ ...sx.num, fontWeight: 700, marginRight: 10 }}>{money(v.total)}</div>
+                <button style={sx.iconBtn} onClick={() => doPrint(v)}><Printer size={18} color={C.green} /></button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ height: 24 }} />
+      {printing && (
+        <div className="print-area">
+          <InvoiceSheet visit={printing} store={storeById[printing.storeId]} business={meta.business} onClose={() => setPrinting(null)} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InvoiceSheet({ visit, store, business, onClose }) {
+  const items = visit.lines.filter(l => l.refilled > 0);
+
+  const emailInvoice = () => {
+    const lines = items.map(l => `${l.name} — ${l.refilled} x ${money(l.price)} = ${money(l.lineTotal)}`).join('\n');
+    const body =
+`Invoice #${visit.invoiceNo} — ${business}
+Date: ${visit.date}
+Deliver to: ${store?.name || ''}${store?.address ? '\n' + store.address : ''}
+
+${lines}
+
+Total due: ${money(visit.total)}
+
+Thank you for your business!`;
+    const to = store?.email || '';
+    window.location.href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(`Invoice #${visit.invoiceNo} from ${business}`)}&body=${encodeURIComponent(body)}`;
+  };
+
+  return (
+    <div style={sx.invoiceWrap}>
+      <div className="no-print" style={{ ...sx.row, marginBottom: 16 }}>
+        <button style={{ ...sx.primaryBtn }} onClick={emailInvoice}><Mail size={15} /> Email invoice</button>
+        <button style={{ ...sx.dangerBtn }} onClick={onClose}><X size={15} /> Close</button>
+      </div>
+      <div style={sx.invoiceSheet}>
+        <div style={sx.spread}>
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: C.ink }}>{business}</div>
+            <div style={{ color: C.sub, fontSize: 13 }}>Delivery Invoice</div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontWeight: 700 }}>Invoice #{visit.invoiceNo}</div>
+            <div style={{ color: C.sub, fontSize: 13 }}>{visit.date}</div>
+          </div>
+        </div>
+        <div style={{ margin: '16px 0', padding: '10px 0', borderTop: `2px solid ${C.ink}`, borderBottom: `1px solid ${C.line}` }}>
+          <div style={{ fontSize: 12, color: C.sub, textTransform: 'uppercase', letterSpacing: 1 }}>Deliver to</div>
+          <div style={{ fontWeight: 700, fontSize: 16 }}>{store?.name}</div>
+          {store?.address && <div style={{ color: C.sub }}>{store.address}</div>}
+        </div>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+          <thead>
+            <tr style={{ textAlign: 'left', color: C.sub, fontSize: 12 }}>
+              <th style={sx.th}>Item</th>
+              <th style={{ ...sx.th, textAlign: 'center' }}>Qty</th>
+              <th style={{ ...sx.th, textAlign: 'right' }}>Price</th>
+              <th style={{ ...sx.th, textAlign: 'right' }}>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((l, i) => (
+              <tr key={i} style={{ borderBottom: `1px solid ${C.line}` }}>
+                <td style={sx.td}>{l.name}</td>
+                <td style={{ ...sx.td, textAlign: 'center' }}>{l.refilled}</td>
+                <td style={{ ...sx.td, textAlign: 'right' }}>{money(l.price)}</td>
+                <td style={{ ...sx.td, textAlign: 'right' }}>{money(l.lineTotal)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div style={{ ...sx.spread, marginTop: 16, paddingTop: 12, borderTop: `2px solid ${C.ink}` }}>
+          <span style={{ fontWeight: 700, fontSize: 16 }}>Total due</span>
+          <span style={{ fontWeight: 800, fontSize: 20 }}>{money(visit.total)}</span>
+        </div>
+        <p style={{ marginTop: 24, color: C.sub, fontSize: 12, textAlign: 'center' }}>Thank you for your business</p>
+      </div>
+    </div>
+  );
+}
+
+/* =====================================================================
+   EXPENSES
+===================================================================== */
+function ExpensesView({ trips, setTrips, routes }) {
+  const blank = { label: '', routeId: '', date: todayISO(), miles: '', gas: '', food: '', hotel: '', other: '', notes: '' };
+  const [f, setF] = useState(blank);
+
+  const add = () => {
+    if (!f.label.trim() && !f.routeId) return;
+    const routeName = routes.find(r => r.id === f.routeId)?.name;
+    setTrips([{
+      id: uid(), label: f.label.trim() || routeName || 'Trip', routeId: f.routeId, date: f.date,
+      miles: parseFloat(f.miles) || 0, gas: parseFloat(f.gas) || 0,
+      food: parseFloat(f.food) || 0, hotel: parseFloat(f.hotel) || 0,
+      other: parseFloat(f.other) || 0, notes: f.notes.trim(),
+    }, ...trips]);
+    setF(blank);
+  };
+
+  const totals = trips.reduce((a, t) => ({
+    gas: a.gas + t.gas, food: a.food + t.food, hotel: a.hotel + t.hotel,
+    other: a.other + t.other, miles: a.miles + t.miles,
+  }), { gas: 0, food: 0, hotel: 0, other: 0, miles: 0 });
+  const totalSpent = totals.gas + totals.food + totals.hotel + totals.other;
+  const deductible = totals.gas + totals.hotel + totals.other + totals.food * 0.5;
+
+  const fld = (k, label) => (
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <Label>{label}</Label>
+      <input style={{ ...sx.input, padding: '10px 8px' }} inputMode="decimal" placeholder="0" value={f[k]} onChange={e => setF({ ...f, [k]: e.target.value })} />
+    </div>
+  );
+
+  return (
+    <div>
+      <Header title="Route expenses" sub="Track every cost so taxes are easy later" />
+      <div style={{ padding: '8px 16px' }}>
+        <div style={sx.card}>
+          <Label>Which route was this for?</Label>
+          <select style={sx.input} value={f.routeId} onChange={e => setF({ ...f, routeId: e.target.value })}>
+            <option value="">No specific route</option>
+            {routes.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+          </select>
+          <div style={{ marginTop: 8 }}>
+            <Label>Trip name (optional if route picked)</Label>
+            <input style={sx.input} placeholder="e.g. Tuesday run" value={f.label} onChange={e => setF({ ...f, label: e.target.value })} />
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <Label>Date</Label>
+            <input style={{ ...sx.input }} className="date-input" type="date" value={f.date} onChange={e => setF({ ...f, date: e.target.value })} />
+          </div>
+          <div style={{ ...sx.row, marginTop: 8, gap: 8 }}>{fld('miles', 'Miles driven')}{fld('gas', 'Gas $')}</div>
+          <div style={{ ...sx.row, marginTop: 8, gap: 8 }}>{fld('food', 'Food $')}{fld('hotel', 'Hotel $')}</div>
+          <div style={{ ...sx.row, marginTop: 8, gap: 8 }}>{fld('other', 'Other $')}<div style={{ flex: 1 }} /></div>
+          <input style={{ ...sx.input, marginTop: 8 }} placeholder="Notes (optional)" value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} />
+          <button style={{ ...sx.primaryBtn, width: '100%', justifyContent: 'center', marginTop: 10 }} onClick={add}>
+            <Plus size={16} /> Add expense
+          </button>
+        </div>
+
+        {trips.length > 0 && (
+          <div style={{ ...sx.card, background: C.amberSoft, border: `1px solid ${C.amber}44` }}>
+            <div style={sx.spread}><span style={sx.muted}>Total spent</span><b style={sx.num}>{money(totalSpent)}</b></div>
+            <div style={sx.spread}><span style={sx.muted}>Total miles</span><b style={sx.num}>{totals.miles.toLocaleString()}</b></div>
+            <div style={{ ...sx.spread, marginTop: 6, paddingTop: 8, borderTop: `1px solid ${C.amber}55` }}>
+              <span style={{ fontWeight: 700 }}>Likely deductible</span>
+              <b style={{ ...sx.num, color: C.green, fontSize: 17 }}>{money(deductible)}</b>
+            </div>
+            <p style={{ ...sx.muted, marginBottom: 0, marginTop: 8, fontSize: 12 }}>
+              Food counts at 50% per IRS rules; gas, hotel & other at full. Estimate only — confirm with a CPA. Mileage can be deducted at the standard rate <i>instead of</i> actual gas.
+            </p>
+          </div>
+        )}
+
+        {trips.map(t => (
+          <div key={t.id} style={sx.card}>
+            <div style={sx.spread}>
+              <div>
+                <div style={{ fontWeight: 700 }}>{t.label}</div>
+                <div style={sx.muted}>{t.date} · {t.miles} mi</div>
+              </div>
+              <div style={sx.row}>
+                <b style={{ ...sx.num, marginRight: 10 }}>{money(t.gas + t.food + t.hotel + t.other)}</b>
+                <button style={sx.iconBtn} onClick={() => setTrips(trips.filter(x => x.id !== t.id))}><Trash2 size={16} color={C.red} /></button>
+              </div>
+            </div>
+            <div style={{ ...sx.row, gap: 14, marginTop: 8, flexWrap: 'wrap' }}>
+              <Chip icon={Fuel} v={t.gas} /><Chip icon={Utensils} v={t.food} /><Chip icon={Hotel} v={t.hotel} />
+              {t.other > 0 && <Chip icon={Wallet} v={t.other} />}
+            </div>
+            {t.notes && <p style={{ ...sx.muted, marginBottom: 0, marginTop: 6 }}>{t.notes}</p>}
+          </div>
+        ))}
+      </div>
+      <div style={{ height: 24 }} />
+    </div>
+  );
+}
+
+/* =====================================================================
+   SMALL PIECES
+===================================================================== */
+function Header({ title, sub }) {
+  return (
+    <div style={sx.headerWrap}>
+      <h1 style={sx.h1}>{title}</h1>
+      <p style={sx.headerSub}>{sub}</p>
+    </div>
+  );
+}
+function Section({ title, icon: Icon, children }) {
+  return (
+    <div style={{ marginTop: 18 }}>
+      <div style={{ ...sx.row, padding: '0 16px 6px', alignItems: 'center', gap: 7 }}>
+        {Icon && <Icon size={16} color={C.green} />}
+        <h2 style={sx.h2}>{title}</h2>
+      </div>
+      <div style={{ padding: '0 16px' }}>{children}</div>
+    </div>
+  );
+}
+function SectionInline({ title, children }) {
+  return (
+    <div style={{ ...sx.card }}>
+      <div style={{ ...sx.h2, fontSize: 12, marginBottom: 6 }}>{title}</div>
+      {children}
+    </div>
+  );
+}
+function Stat({ label, value, tone }) {
+  const col = tone === 'red' ? C.red : C.green;
+  return (
+    <div style={{ ...sx.statCard, flex: 1 }}>
+      <div style={{ ...sx.num, fontWeight: 800, fontSize: 16, color: col }}>{value}</div>
+      <div style={{ ...sx.muted, fontSize: 11 }}>{label}</div>
+    </div>
+  );
+}
+function MiniStat({ label, v, color = C.ink, small }) {
+  return (
+    <div style={{ flex: 1, background: C.bg, borderRadius: 10, padding: '8px 10px' }}>
+      <div style={{ fontSize: 11, color: C.sub }}>{label}</div>
+      <div style={{ ...sx.num, fontWeight: 700, color, fontSize: small ? 12 : 14, lineHeight: 1.3 }}>{v}</div>
+    </div>
+  );
+}
+function Chip({ icon: Icon, v }) {
+  return <span style={{ ...sx.row, fontSize: 13, color: C.sub, alignItems: 'center', gap: 4 }}><Icon size={13} /> {money(v)}</span>;
+}
+function Label({ children }) { return <div style={{ fontSize: 12, fontWeight: 600, color: C.sub, marginBottom: 4 }}>{children}</div>; }
+function Empty({ text, cta, onCta }) {
+  return (
+    <div style={sx.empty}>
+      <ClipboardList size={26} color={C.sub} style={{ opacity: .5 }} />
+      <p style={{ ...sx.muted, marginTop: 8 }}>{text}</p>
+      {cta && <button style={{ ...sx.primaryBtn, marginTop: 10 }} onClick={onCta}>{cta}</button>}
+    </div>
+  );
+}
+
+/* ---------- styles ---------- */
+const sx = {
+  app: { maxWidth: 480, margin: '0 auto', height: '100vh', background: C.bg, color: C.ink, display: 'flex', flexDirection: 'column', fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif', position: 'relative' },
+  scroll: { flex: 1, overflowY: 'auto', paddingBottom: 8, WebkitOverflowScrolling: 'touch' },
+  nav: { display: 'flex', borderTop: `1px solid ${C.line}`, background: C.surface, paddingBottom: 'env(safe-area-inset-bottom)' },
+  navBtn: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '9px 0', background: 'none', border: 'none', cursor: 'pointer' },
+  headerWrap: { padding: '20px 16px 8px' },
+  h1: { fontSize: 22, fontWeight: 800, margin: 0, letterSpacing: -0.4 },
+  h2: { fontSize: 14, fontWeight: 700, margin: 0, textTransform: 'uppercase', letterSpacing: 0.5, color: C.ink },
+  headerSub: { color: C.sub, margin: '3px 0 0', fontSize: 14 },
+  card: { background: C.surface, border: `1px solid ${C.line}`, borderRadius: 14, padding: 14, marginBottom: 10 },
+  statCard: { background: C.surface, border: `1px solid ${C.line}`, borderRadius: 12, padding: '12px 8px', textAlign: 'center' },
+  spread: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  row: { display: 'flex', gap: 8 },
+  lineRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${C.line}` },
+  muted: { color: C.sub, fontSize: 13, margin: 0 },
+  num: { fontVariantNumeric: 'tabular-nums' },
+  input: { width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: `1px solid ${C.line}`, borderRadius: 10, fontSize: 15, background: C.bg, color: C.ink, outline: 'none' },
+  miniInput: { width: 52, textAlign: 'center', padding: '7px 4px', border: `1px solid ${C.line}`, borderRadius: 8, fontSize: 15, background: C.bg, color: C.ink, fontWeight: 700 },
+  primaryBtn: { display: 'inline-flex', alignItems: 'center', gap: 6, background: C.green, color: '#fff', border: 'none', borderRadius: 10, padding: '10px 14px', fontWeight: 700, fontSize: 14, cursor: 'pointer' },
+  outlineBtn: { display: 'inline-flex', alignItems: 'center', gap: 6, background: 'transparent', color: C.green, border: `1.5px solid ${C.green}`, borderRadius: 10, padding: '9px 13px', fontWeight: 700, fontSize: 14, cursor: 'pointer' },
+  dangerBtn: { display: 'inline-flex', alignItems: 'center', gap: 6, background: C.redSoft, color: C.red, border: 'none', borderRadius: 10, padding: '9px 13px', fontWeight: 700, fontSize: 13, cursor: 'pointer' },
+  iconBtn: { background: 'none', border: 'none', padding: 6, cursor: 'pointer', display: 'flex' },
+  backBtn: { display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: C.green, fontWeight: 700, fontSize: 14, cursor: 'pointer', padding: 0, marginBottom: 6 },
+  empty: { textAlign: 'center', padding: '28px 16px', background: C.surface, border: `1px dashed ${C.line}`, borderRadius: 14 },
+  invoiceWrap: { position: 'fixed', inset: 0, background: '#0008', zIndex: 50, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', alignItems: 'center' },
+  invoiceSheet: { background: '#fff', borderRadius: 12, padding: 28, width: '100%', maxWidth: 440 },
+  th: { padding: '6px 4px', borderBottom: `1px solid ${C.line}`, fontWeight: 600 },
+  td: { padding: '8px 4px' },
+};
+
+const globalCSS = `
+* { -webkit-tap-highlight-color: transparent; }
+input, select, button { font-family: inherit; }
+input[type="date"], .date-input {
+  -webkit-appearance: none;
+  appearance: none;
+  min-width: 0;
+  max-width: 100%;
+  display: block;
+  text-align: left;
+}
+input[type="date"]::-webkit-date-and-time-value { text-align: left; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid ${C.green}; outline-offset: 1px; }
+::-webkit-scrollbar { width: 0; }
+@media print {
+  .no-print { display: none !important; }
+  .print-area { position: static !important; }
+  body { background: #fff !important; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+`;
+
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+
+</script>
+</body>
+</html>
